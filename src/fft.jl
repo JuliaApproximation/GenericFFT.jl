@@ -280,17 +280,6 @@ function mul!(C::StridedVector, p::DummybrFFTPlan, x::StridedVector)
 end
 
 
-# We override these for AbstractFloat, so that conversion from reals to
-# complex numbers works for any AbstractFloat (instead of only BlasFloat's)
-AbstractFFTs.complexfloat(x::StridedArray{Complex{<:AbstractFloat}}) = x
-AbstractFFTs.realfloat(x::StridedArray{<:Real}) = x
-# We override this one in order to avoid throwing an error that the type is
-# unsupported (as defined in AbstractFFTs)
-AbstractFFTs._fftfloat(::Type{T}) where {T <: AbstractFloat} = T
-# We also avoid any conversion of types that are already AbstractFloat
-# (since AbstractFFTs calls float(x) by default, which might change types)
-AbstractFFTs.fftfloat(x::AbstractFloat) = x
-
 # We intercept the calls to plan_X(x, region) below.
 # In order not to capture any calls that should go to FFTW, we have to be
 # careful about the typing, so that the calls to FFTW remain more specific.
