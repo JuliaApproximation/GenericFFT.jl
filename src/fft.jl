@@ -292,7 +292,9 @@ AbstractFFTs.realfloat(x::StridedArray{<:Real}) = x
 # We override this one in order to avoid throwing an error that the type is
 # unsupported (as defined in AbstractFFTs)
 AbstractFFTs._fftfloat(::Type{T}) where {T <: AbstractFloat} = T
-
+# We also avoid any conversion of types that are already AbstractFloat
+# (since AbstractFFTs calls float(x) by default, which might change types)
+AbstractFFTs.fftfloat(x::Type{T}) where {T <: AbstractFloat} = x
 
 # We intercept the calls to plan_X(x, region) below.
 # In order not to capture any calls that should go to FFTW, we have to be
