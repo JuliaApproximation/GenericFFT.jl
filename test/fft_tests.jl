@@ -1,4 +1,4 @@
-using DoubleFloats, DSP, FFTW, LinearAlgebra
+using DoubleFloats, FFTW, LinearAlgebra
 
 function test_basic_functionality()
     c = randn(ComplexF16, 20)
@@ -21,7 +21,7 @@ function test_fft_dct(T)
 
     s = one(T) ./ (1:10)
     s64 = Float64.(s)
-    @test Float64.(conv(s, s)) ≈ conv(s64, s64)
+    # @test Float64.(conv(s, s)) ≈ conv(s64, s64)
     @test s == one(T) ./ (1:10) #67, ensure conv doesn't overwrite input
     @test all(s64 .=== Float64.(one(T) ./ (1:10)))
 
