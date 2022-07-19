@@ -81,11 +81,6 @@ function _conv!(u::StridedVector{T}, v::StridedVector{T}) where T<:AbstractFloat
     y = T<:Real ? real(y[1:n]) : y[1:n]
 end
 
-conv(u::AbstractArray{T, N}, v::AbstractArray{T, N}) where {T<:AbstractFloat, N} = _conv!(deepcopy(u), deepcopy(v))
-conv(u::AbstractArray{T, N}, v::AbstractArray{Complex{T}, N}) where {T<:AbstractFloat, N} = _conv!(complex(deepcopy(u)), deepcopy(v))
-conv(u::AbstractArray{Complex{T}, N}, v::AbstractArray{T, N}) where {T<:AbstractFloat, N} = _conv!(deepcopy(u), complex(deepcopy(v)))
-conv(u::AbstractArray{Complex{T}, N}, v::AbstractArray{Complex{T}, N}) where {T<:AbstractFloat, N} = _conv!(deepcopy(u), deepcopy(v))
-
 # This is a Cooley-Tukey FFT algorithm inspired by many widely available algorithms including:
 # c_radix2.c in the GNU Scientific Library and four1 in the Numerical Recipes in C.
 # However, the trigonometric recurrence is improved for greater efficiency.

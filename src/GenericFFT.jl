@@ -2,8 +2,6 @@ module GenericFFT
 
 using Reexport
 
-import DSP
-
 @reexport using AbstractFFTs
 @reexport using FFTW
 
@@ -15,8 +13,6 @@ import AbstractFFTs: Plan, ScaledPlan,
                      plan_bfft!, plan_rfft, plan_irfft, plan_brfft,
                      fftshift, ifftshift, rfft_output_size, brfft_output_size,
                      plan_inv, normalization
-
-import DSP: conv
 
 import FFTW: dct, dct!, idct, idct!, plan_dct!, plan_idct!,
              plan_dct, plan_idct, fftwNumber
