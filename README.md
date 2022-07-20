@@ -1,6 +1,6 @@
 # GenericFFT.jl
 
-[![Build Status](https://github.com/JuliaApproximation/GenericFFT.jl/workflows/CI/badge.svg)](https://github.com/JuliaApproximation/GenericFFT.jl/actions?query=workflow%3ACI) [![codecov](https://codecov.io/gh/JuliaApproximation/GenericFFT.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaApproximation/GenericFFT.jl) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaApproximation.github.io/GenericFFT.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaApproximation.github.io/GenericFFT.jl/dev)
+[![Build Status](https://github.com/JuliaApproximation/GenericFFT.jl/workflows/CI/badge.svg)](https://github.com/JuliaApproximation/GenericFFT.jl/actions?query=workflow%3ACI) [![codecov](https://codecov.io/gh/JuliaApproximation/GenericFFT.jl/branch/main/graph/badge.svg?token=TSiBjCYqzb)](https://codecov.io/gh/JuliaApproximation/GenericFFT.jl) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaApproximation.github.io/GenericFFT.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaApproximation.github.io/GenericFFT.jl/dev)
 
 `GenericFFT.jl` implements a Fast Fourier Transform for generic floating point number types.
 
