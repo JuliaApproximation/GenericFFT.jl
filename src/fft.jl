@@ -61,10 +61,10 @@ generic_ifft!(x::StridedArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv
 
 generic_rfft(v::Vector{T}, region) where T<:AbstractFloats = generic_fft(v, region)[1:div(length(v),2)+1]
 function generic_irfft(v::Vector{T}, n::Integer, region) where T<:ComplexFloats
-    @assert n==2length(v)-1
+    @assert length(v) == n>>1 + 1
     r = Vector{T}(undef, n)
     r[1:length(v)]=v
-    r[length(v)+1:end]=reverse(conj(v[2:end]))
+    r[length(v)+1:n]=reverse(conj(v[2:end])[1:n-length(v)])
     real(generic_ifft(r, region))
 end
 generic_brfft(v::StridedArray, n::Integer, region) = generic_irfft(v, n, region)*n
