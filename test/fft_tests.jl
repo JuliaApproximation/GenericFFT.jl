@@ -41,6 +41,11 @@ function test_fft_dct(T)
     @test norm(idct(c)-idct(map(ComplexF64,c)),Inf) < 10eps(Float64)
     @test norm(idct(dct(c))-c,Inf) < 1000eps(T)
     @test norm(dct(idct(c))-c,Inf) < 1000eps(T)
+
+    @test_throws AssertionError irfft(c, 197)
+    @test norm(irfft(c, 198) - irfft(map(ComplexF64, c), 198), Inf) < 10eps(Float64)
+    @test norm(irfft(c, 199) - irfft(map(ComplexF64, c), 199), Inf) < 10eps(Float64)
+    @test_throws AssertionError irfft(c, 200)
 end
 
 # Make sure we don't accidentally hijack any FFTW plans
