@@ -1,6 +1,6 @@
 name = "GenericFFT"
 uuid = "a8297547-1b15-4a5a-a998-a2ac5f1cef28"
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
