@@ -56,8 +56,8 @@ end
 
 generic_bfft(x::StridedArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft(conj(x), region))
 generic_bfft!(x::StridedArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft!(conj!(x), region))
-generic_ifft(x::StridedArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(length(x), conj!(generic_fft(conj(x), region)))
-generic_ifft!(x::StridedArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(length(x), conj!(generic_fft!(conj!(x), region)))
+generic_ifft(x::StridedArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(length(x)), conj!(generic_fft(conj(x), region)))
+generic_ifft!(x::StridedArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(length(x)), conj!(generic_fft!(conj!(x), region)))
 
 generic_rfft(v::Vector{T}, region) where T<:AbstractFloats = generic_fft(v, region)[1:div(length(v),2)+1]
 function generic_irfft(v::Vector{T}, n::Integer, region) where T<:ComplexFloats
@@ -131,7 +131,7 @@ generic_fft_pow2(x::Vector{T}) where T<:AbstractFloat = generic_fft_pow2(complex
 function generic_ifft_pow2(x::Vector{Complex{T}}) where T<:AbstractFloat
     y = interlace(real(x), -imag(x))
     generic_fft_pow2!(y)
-    return ldiv!(length(x), conj!(complex.(y[1:2:end], y[2:2:end])))
+    return ldiv!(T(length(x)), conj!(complex.(y[1:2:end], y[2:2:end])))
 end
 
 function generic_dct(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
