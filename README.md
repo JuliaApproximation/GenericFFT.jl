@@ -39,4 +39,4 @@ julia> fft(rand(Double64, 2))
 
 ## History
 
-The code in this package was developed in the [FastTransforms.jl](https://github.com/JuliaApproximation/FastTransforms.jl) package, with contributions by many developers. The code was moved to a separate package in July 2022 from [this file](https://github.com/JuliaApproximation/FastTransforms.jl/blob/3bd5a9a2cf744fc26418fe999bbb151b5ccc6634/src/fftBigFloat.jl).
+The code in this package was developed in the [FastTransforms.jl](https://github.com/JuliaApproximation/FastTransforms.jl) package by Mikael Slevinsky. The code was moved to a separate package in July 2022 from [this file](https://github.com/JuliaApproximation/FastTransforms.jl/blob/3bd5a9a2cf744fc26418fe999bbb151b5ccc6634/src/fftBigFloat.jl).
