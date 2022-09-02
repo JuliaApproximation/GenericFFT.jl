@@ -118,6 +118,13 @@ function test_fftw()
         @test !( plan_rfft(rand(T,10), 1:1) isa GenericFFT.DummyPlan )
         @test !( plan_brfft(rand(Complex{T},10), 19) isa GenericFFT.DummyPlan )
         @test !( plan_brfft(rand(Complex{T},10), 19, 1:1) isa GenericFFT.DummyPlan )
+
+        # check that GenericFFT and FFTW plans have the same parametric type
+        @test plan_rfft(rand(Float16,10)) isa AbstractFFTs.Plan{Float16}
+        @test plan_rfft(rand(Float64,10)) isa AbstractFFTs.Plan{Float64}
+        
+        @test plan_brfft(rand(Complex{Float16},10),19) isa AbstractFFTs.Plan{Complex{Float16}}
+        @test plan_brfft(rand(Complex{Float64},10),19) isa AbstractFFTs.Plan{Complex{Float64}}
     end
 end
 
