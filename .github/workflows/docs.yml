@@ -1,0 +1,30 @@
+name: Documentation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'master'
+    tags: '*'
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        julia-version: [1]
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: ${{ matrix.julia-version }}
+      - name: Install dependencies
+        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+      - name: Build and deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
+        run: julia --project=docs/ docs/make.jl
