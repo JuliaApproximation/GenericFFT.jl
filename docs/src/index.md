@@ -1,3 +1,3 @@
 # GenericFFT.jl Documentation
 
-This is only a temporary document for now.
+GenericFFT.jl implements a Fast Fourier Transform for generic floating point number types.
