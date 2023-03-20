@@ -13,3 +13,4 @@ using AbstractFFTs, GenericFFT, Test
 
 
 include("fft_tests.jl")
+include("toeplitz_tests.jl")

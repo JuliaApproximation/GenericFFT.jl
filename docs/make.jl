@@ -1,4 +1,4 @@
-using Documenter, DomainSets
+using Documenter, GenericFFT
 
 makedocs(
 	doctest = false,
