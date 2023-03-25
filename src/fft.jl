@@ -8,12 +8,12 @@ const ComplexFloats = Complex{T} where T<:AbstractFloat
 # The following implements Bluestein's algorithm, following http://www.dsprelated.com/dspbooks/mdft/Bluestein_s_FFT_Algorithm.html
 # To add more types, add them in the union of the function's signature.
 
-function generic_fft(x::AbstractVector{T}, region::Integer) where T<:AbstractFloats
+function generic_fft(x::AbstractVector{T}, region::Integer=1) where T<:AbstractFloats
     @assert region == 1
     generic_fft(x)
 end
 
-function generic_fft!(x::AbstractVector{T}, region::Integer) where T<:AbstractFloats
+function generic_fft!(x::AbstractVector{T}, region::Integer=1) where T<:AbstractFloats
     @assert region == 1
     copyto!(x, generic_fft(x))
 end
@@ -50,8 +50,9 @@ end
 
 generic_fft(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats = generic_fft!(copy(x), region)
 
+generic_fft(x::AbstractMatrix{T}, region=1:2) where T<:AbstractFloats = generic_fft!(copy(x), region)
+
 function generic_fft(x::Vector{T}) where T<:AbstractFloats
-    T <: FFTW.fftwNumber && (@warn("Using generic fft for FFTW number type."))
     n = length(x)
     ispow2(n) && return generic_fft_pow2(x)
     ks = range(zero(real(T)),stop=n-one(real(T)),length=n)

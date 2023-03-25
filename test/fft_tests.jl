@@ -1,4 +1,5 @@
 using DoubleFloats, FFTW, GenericFFT, LinearAlgebra
+import GenericFFT: generic_fft, generic_fft!
 
 function test_basic_functionality()
     c = randn(ComplexF16, 20)
@@ -157,4 +158,22 @@ end
     @test ComplexF64.(p*copy(x)) ≈ fft(ComplexF64.(x))
     @test ComplexF64.(p_i * copy(x)) ≈ ifft(ComplexF64.(x))
     @test ComplexF64.(p \ copy(x)) ≈ ifft(ComplexF64.(x))
+end
+
+@testset "generic_fft" begin
+    x = randn(5) .+ randn(5)im
+    x̃ = copy(x)
+    @test generic_fft(x) ≈ generic_fft(x, 1:1) ≈ generic_fft!(x̃) ≈ fft(x)
+    @test x̃ ≈ fft(x)
+
+    X = randn(5,6) .+ randn(5,6)im
+    X̃ = copy(X)
+    @test generic_fft(X,1) ≈ generic_fft(X, 1:1) ≈ generic_fft!(X̃,1) ≈ fft(X,1)
+    @test X̃ ≈ fft(X,1)
+    X̃ = copy(X)
+    @test generic_fft(X,2) ≈ generic_fft(X, 2:2) ≈ generic_fft!(X̃,2) ≈ fft(X,2)
+    @test X̃ ≈ fft(X,2)
+    X̃ = copy(X)
+    @test generic_fft(X) ≈ generic_fft(X, 1:2) ≈ generic_fft!(X̃,1:2) ≈ fft(X)
+    @test X̃ ≈ fft(X)
 end
