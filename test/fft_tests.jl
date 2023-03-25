@@ -1,4 +1,4 @@
-using DoubleFloats, FFTW, LinearAlgebra
+using DoubleFloats, FFTW, GenericFFT, LinearAlgebra
 
 function test_basic_functionality()
     c = randn(ComplexF16, 20)
@@ -144,5 +144,17 @@ end
     p_i = plan_ifft!(x, 1)
     @test ComplexF64.(p*copy(x)) ≈ fft(ComplexF64.(x), 1)
     @test ComplexF64.(p_i * copy(x)) ≈ ifft(ComplexF64.(x), 1)
-    @test_broken ComplexF64.(p \ copy(x)) ≈ ifft(ComplexF64.(x), 1)
+    @test ComplexF64.(p \ copy(x)) ≈ ifft(ComplexF64.(x), 1)
+
+    p = plan_fft!(x, 2)
+    p_i = plan_ifft!(x, 2)
+    @test ComplexF64.(p*copy(x)) ≈ fft(ComplexF64.(x), 2)
+    @test ComplexF64.(p_i * copy(x)) ≈ ifft(ComplexF64.(x), 2)
+    @test ComplexF64.(p \ copy(x)) ≈ ifft(ComplexF64.(x), 2)
+
+    p = plan_fft!(x)
+    p_i = plan_ifft!(x)
+    @test ComplexF64.(p*copy(x)) ≈ fft(ComplexF64.(x))
+    @test ComplexF64.(p_i * copy(x)) ≈ ifft(ComplexF64.(x))
+    @test ComplexF64.(p \ copy(x)) ≈ ifft(ComplexF64.(x))
 end
