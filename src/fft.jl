@@ -8,7 +8,7 @@ const ComplexFloats = Complex{T} where T<:AbstractFloat
 # The following implements Bluestein's algorithm, following http://www.dsprelated.com/dspbooks/mdft/Bluestein_s_FFT_Algorithm.html
 # To add more types, add them in the union of the function's signature.
 
-function generic_fft(x::AbstractVector{T}, region::Integer=1) where T<:AbstractFloats
+function generic_fft(x::AbstractVector{T}, region::Integer) where T<:AbstractFloats
     @assert region == 1
     generic_fft(x)
 end
