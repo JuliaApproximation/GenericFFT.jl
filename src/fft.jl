@@ -8,44 +8,51 @@ const ComplexFloats = Complex{T} where T<:AbstractFloat
 # The following implements Bluestein's algorithm, following http://www.dsprelated.com/dspbooks/mdft/Bluestein_s_FFT_Algorithm.html
 # To add more types, add them in the union of the function's signature.
 
-function generic_fft(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
-    region == 1 && (ret = generic_fft(x))
-    ret
+function generic_fft(x::AbstractVector{T}, region::Integer=1) where T<:AbstractFloats
+    @assert region == 1
+    generic_fft(x)
 end
 
-function generic_fft!(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
-    region == 1 && (x[:] .= generic_fft(x))
-    x
+function generic_fft!(x::AbstractVector{T}, region::Integer=1) where T<:AbstractFloats
+    @assert region == 1
+    copyto!(x, generic_fft(x))
 end
 
-function generic_fft(x::StridedVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
-    region == 1:1 && (ret = generic_fft(x))
-    ret
+function generic_fft(x::AbstractVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
+    @assert region == 1:1
+    generic_fft(x)
 end
 
-function generic_fft!(x::StridedVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
-    region == 1:1 && (x[:] .= generic_fft(x))
-    x
+function generic_fft!(x::AbstractVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
+    @assert region == 1:1
+    copyto!(x, generic_fft(x))
 end
 
-function generic_fft(x::StridedMatrix{T}, region::Integer) where T<:AbstractFloats
-    if region == 1
-        ret = hcat([generic_fft(x[:, j]) for j in 1:size(x, 2)]...)
-    end
-    ret
-end
-
-function generic_fft!(x::StridedMatrix{T}, region::Integer) where T<:AbstractFloats
+function generic_fft!(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats
     if region == 1
         for j in 1:size(x, 2)
             x[:, j] .= generic_fft(x[:, j])
+        end
+    else
+        for k in 1:size(x, 1)
+            x[k, :] .= generic_fft(x[k, :])
         end
     end
     x
 end
 
+function generic_fft!(x::AbstractMatrix{T}, region) where T<:AbstractFloats
+    for r in region
+        generic_fft!(x, r)
+    end
+    x
+end
+
+generic_fft(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats = generic_fft!(copy(x), region)
+
+generic_fft(x::AbstractMatrix{T}, region=1:2) where T<:AbstractFloats = generic_fft!(copy(x), region)
+
 function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
-    T <: FFTW.fftwNumber && (@warn("Using generic fft for FFTW number type."))
     n = length(x)
     ispow2(n) && return generic_fft_pow2(x)
     ks = range(zero(real(T)),stop=n-one(real(T)),length=n)
@@ -54,10 +61,14 @@ function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     return Wks.*_conv!(xq,wq)[n+1:2n]
 end
 
-generic_bfft(x::StridedArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft(conj(x), region))
-generic_bfft!(x::StridedArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft!(conj!(x), region))
-generic_ifft(x::StridedArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(length(x)), conj!(generic_fft(conj(x), region)))
-generic_ifft!(x::StridedArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(length(x)), conj!(generic_fft!(conj!(x), region)))
+generic_bfft(x::AbstractArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft(conj(x), region))
+generic_bfft!(x::AbstractArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft!(conj!(x), region))
+
+_regionscale(x, region::Int) = size(x, region)
+_regionscale(x, region) = prod(size.(Ref(x), region))
+
+generic_ifft(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(_regionscale(x, region)), conj!(generic_fft(conj(x), region)))
+generic_ifft!(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(_regionscale(x, region)), conj!(generic_fft!(conj!(x), region)))
 
 generic_rfft(v::AbstractVector{T}, region) where T<:AbstractFloats = generic_fft(v, region)[1:div(length(v),2)+1]
 function generic_irfft(v::AbstractVector{T}, n::Integer, region) where T<:ComplexFloats
@@ -67,9 +78,9 @@ function generic_irfft(v::AbstractVector{T}, n::Integer, region) where T<:Comple
     r[length(v)+1:n]=reverse(conj(v[2:end])[1:n-length(v)])
     real(generic_ifft(r, region))
 end
-generic_brfft(v::StridedArray, n::Integer, region) = generic_irfft(v, n, region)*n
+generic_brfft(v::AbstractArray, n::Integer, region) = generic_irfft(v, n, region)*n
 
-function _conv!(u::StridedVector{T}, v::StridedVector{T}) where T<:AbstractFloats
+function _conv!(u::AbstractVector{T}, v::AbstractVector{T}) where T<:AbstractFloats
     nu = length(u)
     nv = length(v)
     n = nu + nv - 1
@@ -135,43 +146,43 @@ function generic_ifft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
 end
 
 function generic_dct(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
-    region == 1 && (ret = generic_dct(x))
-    ret
+    @assert region == 1
+    generic_dct(x)
 end
 
 function generic_dct!(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
-    region == 1 && (x[:] .= generic_dct(x))
-    x
+    @assert region == 1
+    copyto!(x, generic_dct(x))
 end
 
 function generic_idct(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
-    region == 1 && (ret = generic_idct(x))
-    ret
+    @assert region == 1
+    generic_idct(x)
 end
 
 function generic_idct!(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
-    region == 1 && (x[:] .= generic_idct(x))
-    x
+    @assert region == 1
+    copyto!(x, generic_idct(x))
 end
 
 function generic_dct(x::StridedVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
-    region == 1:1 && (ret = generic_dct(x))
-    ret
+    @assert region == 1:1
+    generic_dct(x)
 end
 
 function generic_dct!(x::StridedVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
-    region == 1:1 && (x[:] .= generic_dct(x))
-    x
+    @assert region == 1:1
+    copyto!(x, generic_dct(x))
 end
 
 function generic_idct(x::StridedVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
-    region == 1:1 && (ret = generic_idct(x))
-    ret
+    @assert region == 1:1
+    generic_idct(x)
 end
 
 function generic_idct!(x::StridedVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
-    region == 1:1 && (x[:] .= generic_idct(x))
-    x
+    @assert region == 1:1
+    copyto!(x, generic_idct(x))
 end
 
 function generic_dct(a::AbstractVector{Complex{T}}) where {T <: AbstractFloat}
