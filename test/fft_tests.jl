@@ -137,3 +137,12 @@ end
 @testset "Test FFTW compatibility" begin
     test_fftw()
 end
+
+@testset "inv DFT" begin
+    x = big.(randn(10,3) .+ im .* randn(10,3))
+    p = plan_fft!(x, 1)
+    p_i = plan_ifft!(x, 1)
+    @test ComplexF64.(p*copy(x)) ≈ fft(ComplexF64.(x), 1)
+    @test ComplexF64.(p_i * copy(x)) ≈ ifft(ComplexF64.(x), 1)
+    @test_broken ComplexF64.(p \ copy(x)) ≈ ifft(ComplexF64.(x), 1)
+end
