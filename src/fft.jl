@@ -52,7 +52,7 @@ generic_fft(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats = gen
 
 generic_fft(x::AbstractMatrix{T}, region=1:2) where T<:AbstractFloats = generic_fft!(copy(x), region)
 
-function generic_fft(x::Vector{T}) where T<:AbstractFloats
+function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)
     ispow2(n) && return generic_fft_pow2(x)
     ks = range(zero(real(T)),stop=n-one(real(T)),length=n)
@@ -70,8 +70,8 @@ _regionscale(x, region) = prod(size.(Ref(x), region))
 generic_ifft(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(_regionscale(x, region)), conj!(generic_fft(conj(x), region)))
 generic_ifft!(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(_regionscale(x, region)), conj!(generic_fft!(conj!(x), region)))
 
-generic_rfft(v::Vector{T}, region) where T<:AbstractFloats = generic_fft(v, region)[1:div(length(v),2)+1]
-function generic_irfft(v::Vector{T}, n::Integer, region) where T<:ComplexFloats
+generic_rfft(v::AbstractVector{T}, region) where T<:AbstractFloats = generic_fft(v, region)[1:div(length(v),2)+1]
+function generic_irfft(v::AbstractVector{T}, n::Integer, region) where T<:ComplexFloats
     @assert length(v) == n>>1 + 1
     r = Vector{T}(undef, n)
     r[1:length(v)]=v
@@ -96,7 +96,7 @@ end
 # c_radix2.c in the GNU Scientific Library and four1 in the Numerical Recipes in C.
 # However, the trigonometric recurrence is improved for greater efficiency.
 # The algorithm starts with bit-reversal, then divides and conquers in-place.
-function generic_fft_pow2!(x::Vector{T}) where T<:AbstractFloat
+function generic_fft_pow2!(x::AbstractVector{T}) where T<:AbstractFloat
     n,big2=length(x),2one(T)
     nn,j=n÷2,1
     for i=1:2:n-1
@@ -132,14 +132,14 @@ function generic_fft_pow2!(x::Vector{T}) where T<:AbstractFloat
     return x
 end
 
-function generic_fft_pow2(x::Vector{Complex{T}}) where T<:AbstractFloat
+function generic_fft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
     y = interlace(real(x), imag(x))
     generic_fft_pow2!(y)
     return complex.(y[1:2:end], y[2:2:end])
 end
-generic_fft_pow2(x::Vector{T}) where T<:AbstractFloat = generic_fft_pow2(complex(x))
+generic_fft_pow2(x::AbstractVector{T}) where T<:AbstractFloat = generic_fft_pow2(complex(x))
 
-function generic_ifft_pow2(x::Vector{Complex{T}}) where T<:AbstractFloat
+function generic_ifft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
     y = interlace(real(x), -imag(x))
     generic_fft_pow2!(y)
     return ldiv!(T(length(x)), conj!(complex.(y[1:2:end], y[2:2:end])))
@@ -323,7 +323,7 @@ plan_brfft(x::StridedArray{T}, n::Integer, region) where {T <: ComplexFloats} = 
 # plan_rfft!(x::StridedArray{T}) where {T <: RealFloats} = DummyrFFTPlan{Complex{real(T)},true}()
 # plan_irfft!(x::StridedArray{T},n::Integer) where {T <: RealFloats} = DummyirFFTPlan{Complex{real(T)},true}()
 
-function interlace(a::Vector{S},b::Vector{V}) where {S<:Number,V<:Number}
+function interlace(a::AbstractVector{S},b::AbstractVector{V}) where {S<:Number,V<:Number}
     na=length(a);nb=length(b)
     T=promote_type(S,V)
     if nb≥na
