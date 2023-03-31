@@ -163,7 +163,7 @@ end
 @testset "generic_fft" begin
     x = randn(5) .+ randn(5)im
     x̃ = copy(x)
-    @test generic_fft(x) ≈ generic_fft(x, 1:1) ≈ generic_fft!(x̃) ≈ fft(x)
+    @test generic_fft(x) ≈ generic_fft(x, 1:1) ≈ generic_fft(x, (1,)) ≈ generic_fft!(x̃) ≈ fft(x)
     @test x̃ ≈ fft(x)
 
     X = randn(5,6) .+ randn(5,6)im

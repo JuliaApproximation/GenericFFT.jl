@@ -18,13 +18,13 @@ function generic_fft!(x::AbstractVector{T}, region::Integer=1) where T<:Abstract
     copyto!(x, generic_fft(x))
 end
 
-function generic_fft(x::AbstractVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
-    @assert region == 1:1
+function generic_fft(x::AbstractVector{T}, region) where {T<:AbstractFloats}
+    @assert all(==(1), region)
     generic_fft(x)
 end
 
-function generic_fft!(x::AbstractVector{T}, region::UnitRange{I}) where {T<:AbstractFloats, I<:Integer}
-    @assert region == 1:1
+function generic_fft!(x::AbstractVector{T}, region) where {T<:AbstractFloats}
+    @assert all(==(1), region)
     copyto!(x, generic_fft(x))
 end
 
@@ -50,7 +50,7 @@ end
 
 generic_fft(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats = generic_fft!(copy(x), region)
 
-generic_fft(x::AbstractMatrix{T}, region=1:2) where T<:AbstractFloats = generic_fft!(copy(x), region)
+generic_fft(x::AbstractMatrix{T}, region=ntuple(identity, ndims(x))) where T<:AbstractFloats = generic_fft!(copy(x), region)
 
 function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)
