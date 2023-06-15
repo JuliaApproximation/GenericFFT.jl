@@ -31,11 +31,11 @@ end
 function generic_fft!(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats
     if region == 1
         for j in 1:size(x, 2)
-            x[:, j] .= generic_fft(x[:, j])
+            x[:, j] .= generic_fft(@view x[:, j])
         end
     else
         for k in 1:size(x, 1)
-            x[k, :] .= generic_fft(x[k, :])
+            x[k, :] .= generic_fft(@view x[k, :])
         end
     end
     x
@@ -56,9 +56,10 @@ function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)
     ispow2(n) && return generic_fft_pow2(x)
     ks = range(zero(real(T)),stop=n-one(real(T)),length=n)
-    Wks = exp.((-im).*convert(T,π).*ks.^2 ./ n)
-    xq, wq = x.*Wks, conj([exp(-im*convert(T,π)*n);reverse(Wks);Wks[2:end]])
-    return Wks.*_conv!(xq,wq)[n+1:2n]
+    Wks = @. cispi(-T(ks^2/n))
+    Wksrev = @view Wks[reverse(eachindex(Wks))]
+    xq, wq = x.*Wks, conj!([cispi(-T(n)); Wksrev; @view Wks[2:end]])
+    return Wks.* @view _conv!(xq,wq)[n+1:2n]
 end
 
 generic_bfft(x::AbstractArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft(conj(x), region))
@@ -133,16 +134,16 @@ function generic_fft_pow2!(x::AbstractVector{T}) where T<:AbstractFloat
 end
 
 function generic_fft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
-    y = interlace(real(x), imag(x))
+    y = interlacereim(x)
     generic_fft_pow2!(y)
-    return complex.(y[1:2:end], y[2:2:end])
+    return deinterlacereim(y)
 end
 generic_fft_pow2(x::AbstractVector{T}) where T<:AbstractFloat = generic_fft_pow2(complex(x))
 
 function generic_ifft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
-    y = interlace(real(x), -imag(x))
+    y = interlacereim(x, -)
     generic_fft_pow2!(y)
-    return ldiv!(T(length(x)), conj!(complex.(y[1:2:end], y[2:2:end])))
+    return ldiv!(T(length(x)), deinterlacereim(y, -))
 end
 
 function generic_dct(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
@@ -339,4 +340,23 @@ function interlace(a::AbstractVector{S},b::AbstractVector{V}) where {S<:Number,V
         end
         ret
     end
+end
+
+function interlacereim(a::AbstractVector{S}, conjfn = identity) where {S<:Complex}
+    n=length(a)
+    ret=zeros(real(S),2n)
+    for (i, ai) in enumerate(a)
+        ret[2i-1] = real(ai)
+        ret[2i] = conjfn(imag(ai))
+    end
+    ret
+end
+
+function deinterlacereim(a::AbstractVector{S}, conjfn = identity) where {S<:Real}
+    n = length(a)
+    ret = zeros(Complex{S}, n ÷ 2)
+    for i in eachindex(ret)
+        ret[i] = complex(a[2i-1], conjfn(a[2i]))
+    end
+    ret
 end
