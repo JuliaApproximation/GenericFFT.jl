@@ -134,16 +134,16 @@ function generic_fft_pow2!(x::AbstractVector{T}) where T<:AbstractFloat
 end
 
 function generic_fft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
-    y = interlacereim(x)
+    y = interlace_complex(x)
     generic_fft_pow2!(y)
-    return deinterlacereim(y)
+    return deinterlace_complex(y)
 end
 generic_fft_pow2(x::AbstractVector{T}) where T<:AbstractFloat = generic_fft_pow2(complex(x))
 
 function generic_ifft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
-    y = interlacereim(x, -)
+    y = interlace_complex(x, -)
     generic_fft_pow2!(y)
-    return ldiv!(T(length(x)), deinterlacereim(y, -))
+    return ldiv!(T(length(x)), deinterlace_complex(y, -))
 end
 
 function generic_dct(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
@@ -342,7 +342,7 @@ function interlace(a::AbstractVector{S},b::AbstractVector{V}) where {S<:Number,V
     end
 end
 
-function interlacereim(a::AbstractVector{S}, conjfn = identity) where {S<:Complex}
+function interlace_complex(a::AbstractVector{S}, conjfn = identity) where {S<:Complex}
     n=length(a)
     ret=zeros(real(S),2n)
     for (i, ai) in enumerate(a)
@@ -352,7 +352,7 @@ function interlacereim(a::AbstractVector{S}, conjfn = identity) where {S<:Comple
     ret
 end
 
-function deinterlacereim(a::AbstractVector{S}, conjfn = identity) where {S<:Real}
+function deinterlace_complex(a::AbstractVector{S}, conjfn = identity) where {S<:Real}
     n = length(a)
     ret = zeros(Complex{S}, n ÷ 2)
     for i in eachindex(ret)
