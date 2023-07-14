@@ -343,11 +343,11 @@ function interlace(a::AbstractVector{S},b::AbstractVector{V}) where {S<:Number,V
 end
 
 """
-Interlace `v::AbstractVector` with complex entries as
+Interlace `a::AbstractVector` with complex entries as
 
     [(r1,i1), (r2,i2), (r2,i3), ...] -> [r1,i1,r2,i2,r3,i3,...]
     
-with `r,i` the real and imaginary part of every element in `v`."""
+with `r,i` the real and imaginary part of every element in `a`."""
 function interlace_complex(a::AbstractVector{S}, conjfn = identity) where {S<:Complex}
     n = length(a)
     a_interlaced = zeros(real(S),2n)
@@ -360,7 +360,7 @@ end
 
 """Reverse function of interlace_complex."""
 function deinterlace_complex(a_interlaced::AbstractVector{S}, conjfn = identity) where {S<:Real}
-    n = length(a)
+    n = length(a_interlaced)
     a = zeros(Complex{S}, n ÷ 2)        # deinterlaced vector
     @inbounds for i in eachindex(a)     # ignores last entry if length(a_interlaced) odd
         a[i] = complex(a_interlaced[2i-1], conjfn(a_interlaced[2i]))
