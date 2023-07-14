@@ -31,11 +31,11 @@ end
 function generic_fft!(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats
     if region == 1
         for j in 1:size(x, 2)
-            x[:, j] .= generic_fft(x[:, j])
+            x[:, j] .= generic_fft(@view x[:, j])
         end
     else
         for k in 1:size(x, 1)
-            x[k, :] .= generic_fft(x[k, :])
+            x[k, :] .= generic_fft(@view x[k, :])
         end
     end
     x
@@ -56,9 +56,10 @@ function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)
     ispow2(n) && return generic_fft_pow2(x)
     ks = range(zero(real(T)),stop=n-one(real(T)),length=n)
-    Wks = exp.((-im).*convert(T,π).*ks.^2 ./ n)
-    xq, wq = x.*Wks, conj([exp(-im*convert(T,π)*n);reverse(Wks);Wks[2:end]])
-    return Wks.*_conv!(xq,wq)[n+1:2n]
+    Wks = @. cispi(-T(ks^2/n))
+    Wksrev = @view Wks[reverse(eachindex(Wks))]
+    xq, wq = x.*Wks, conj!([cispi(-T(n)); Wksrev; @view Wks[2:end]])
+    return Wks.* @view _conv!(xq,wq)[n+1:2n]
 end
 
 generic_bfft(x::AbstractArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft(conj(x), region))
@@ -133,16 +134,16 @@ function generic_fft_pow2!(x::AbstractVector{T}) where T<:AbstractFloat
 end
 
 function generic_fft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
-    y = interlace(real(x), imag(x))
+    y = interlace_complex(x)
     generic_fft_pow2!(y)
-    return complex.(y[1:2:end], y[2:2:end])
+    return deinterlace_complex(y)
 end
 generic_fft_pow2(x::AbstractVector{T}) where T<:AbstractFloat = generic_fft_pow2(complex(x))
 
 function generic_ifft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
-    y = interlace(real(x), -imag(x))
+    y = interlace_complex(x, -)
     generic_fft_pow2!(y)
-    return ldiv!(T(length(x)), conj!(complex.(y[1:2:end], y[2:2:end])))
+    return ldiv!(T(length(x)), deinterlace_complex(y, -))
 end
 
 function generic_dct(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
@@ -323,20 +324,47 @@ plan_brfft(x::StridedArray{T}, n::Integer, region) where {T <: ComplexFloats} = 
 # plan_rfft!(x::StridedArray{T}) where {T <: RealFloats} = DummyrFFTPlan{Complex{real(T)},true}()
 # plan_irfft!(x::StridedArray{T},n::Integer) where {T <: RealFloats} = DummyirFFTPlan{Complex{real(T)},true}()
 
-function interlace(a::AbstractVector{S},b::AbstractVector{V}) where {S<:Number,V<:Number}
-    na=length(a);nb=length(b)
-    T=promote_type(S,V)
-    if nb≥na
-        ret=zeros(T,2nb)
-        ret[1:2:1+2*(na-1)]=a
-        ret[2:2:end]=b
-        ret
-    else
-        ret=zeros(T,2na-1)
-        ret[1:2:end]=a
-        if !isempty(b)
-            ret[2:2:2+2*(nb-1)]=b
-        end
-        ret
+# old version deprecated in favour of interlace_complex, deinterlace_complex below
+# function interlace(a::AbstractVector{S},b::AbstractVector{V}) where {S<:Number,V<:Number}
+#     na=length(a);nb=length(b)
+#     T=promote_type(S,V)
+#     if nb≥na
+#         ret=zeros(T,2nb)
+#         ret[1:2:1+2*(na-1)]=a
+#         ret[2:2:end]=b
+#         ret
+#     else
+#         ret=zeros(T,2na-1)
+#         ret[1:2:end]=a
+#         if !isempty(b)
+#             ret[2:2:2+2*(nb-1)]=b
+#         end
+#         ret
+#     end
+# end
+
+"""
+Interlace `a::AbstractVector` with complex entries as
+
+    [(r1,i1), (r2,i2), (r2,i3), ...] -> [r1,i1,r2,i2,r3,i3,...]
+    
+with `r,i` the real and imaginary part of every element in `a`."""
+function interlace_complex(a::AbstractVector{S}, conjfn = identity) where {S<:Complex}
+    n = length(a)
+    a_interlaced = zeros(real(S),2n)
+    @inbounds for (i, ai) in enumerate(a)
+        a_interlaced[2i-1] = real(ai)
+        a_interlaced[2i] = conjfn(imag(ai))
     end
+    return a_interlaced
+end
+
+"""Reverse function of interlace_complex."""
+function deinterlace_complex(a_interlaced::AbstractVector{S}, conjfn = identity) where {S<:Real}
+    n = length(a_interlaced)
+    a = zeros(Complex{S}, n ÷ 2)        # deinterlaced vector
+    @inbounds for i in eachindex(a)     # ignores last entry if length(a_interlaced) odd
+        a[i] = complex(a_interlaced[2i-1], conjfn(a_interlaced[2i]))
+    end
+    return a
 end
