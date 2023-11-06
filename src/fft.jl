@@ -325,23 +325,23 @@ plan_brfft(x::StridedArray{T}, n::Integer, region) where {T <: ComplexFloats} = 
 # plan_irfft!(x::StridedArray{T},n::Integer) where {T <: RealFloats} = DummyirFFTPlan{Complex{real(T)},true}()
 
 # old version deprecated in favour of interlace_complex, deinterlace_complex below
-# function interlace(a::AbstractVector{S},b::AbstractVector{V}) where {S<:Number,V<:Number}
-#     na=length(a);nb=length(b)
-#     T=promote_type(S,V)
-#     if nb≥na
-#         ret=zeros(T,2nb)
-#         ret[1:2:1+2*(na-1)]=a
-#         ret[2:2:end]=b
-#         ret
-#     else
-#         ret=zeros(T,2na-1)
-#         ret[1:2:end]=a
-#         if !isempty(b)
-#             ret[2:2:2+2*(nb-1)]=b
-#         end
-#         ret
-#     end
-# end
+function interlace(a::AbstractVector{S},b::AbstractVector{V}) where {S<:Number,V<:Number}
+    na=length(a);nb=length(b)
+    T=promote_type(S,V)
+    if nb≥na
+        ret=zeros(T,2nb)
+        ret[1:2:1+2*(na-1)]=a
+        ret[2:2:end]=b
+        ret
+    else
+        ret=zeros(T,2na-1)
+        ret[1:2:end]=a
+        if !isempty(b)
+            ret[2:2:2+2*(nb-1)]=b
+        end
+        ret
+    end
+end
 
 """
 Interlace `a::AbstractVector` with complex entries as
