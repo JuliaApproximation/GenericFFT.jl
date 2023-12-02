@@ -1,5 +1,10 @@
 using AbstractFFTs, GenericFFT, Test
 
+using Aqua
+@testset "Project quality" begin
+    Aqua.test_all(GenericFFT, piracies=(; broken=true))
+end
+
 @test AbstractFFTs.fftfloat(zero(Float16)) isa Float32
 @test AbstractFFTs.fftfloat(zero(Float32)) isa Float32
 @test AbstractFFTs.fftfloat(zero(Float64)) isa Float64
