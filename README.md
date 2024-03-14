@@ -1,6 +1,10 @@
 # GenericFFT.jl
 
-[![Build Status](https://github.com/JuliaApproximation/GenericFFT.jl/workflows/CI/badge.svg)](https://github.com/JuliaApproximation/GenericFFT.jl/actions?query=workflow%3ACI) [![codecov](https://codecov.io/gh/JuliaApproximation/GenericFFT.jl/branch/main/graph/badge.svg?token=TSiBjCYqzb)](https://codecov.io/gh/JuliaApproximation/GenericFFT.jl) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaApproximation.github.io/GenericFFT.jl/stable) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaApproximation.github.io/GenericFFT.jl/dev)
+[![Build Status](https://github.com/JuliaApproximation/GenericFFT.jl/workflows/CI/badge.svg)](https://github.com/JuliaApproximation/GenericFFT.jl/actions?query=workflow%3ACI)
+[![codecov](https://codecov.io/gh/JuliaApproximation/GenericFFT.jl/branch/main/graph/badge.svg?token=TSiBjCYqzb)](https://codecov.io/gh/JuliaApproximation/GenericFFT.jl)
+[![docs-stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaApproximation.github.io/GenericFFT.jl/stable)
+[![docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://JuliaApproximation.github.io/GenericFFT.jl/dev)
+[![pkgeval](https://juliahub.com/docs/General/BlockArrays/stable/pkgeval.svg)](https://juliaci.github.io/NanosoldierReports/pkgeval_badges/report.html)
 
 `GenericFFT.jl` implements a Fast Fourier Transform for generic floating point number types.
 
