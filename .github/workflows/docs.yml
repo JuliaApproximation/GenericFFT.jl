@@ -14,11 +14,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        julia-version: [1]
+        julia-version: 'lts'
         os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@latest
+      - uses: julia-actions/setup-julia@2.2
         with:
           version: ${{ matrix.julia-version }}
       - name: Install dependencies
