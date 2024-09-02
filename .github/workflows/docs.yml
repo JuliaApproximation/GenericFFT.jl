@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2.3
+      - uses: julia-actions/setup-julia@v2.4
         with:
           version: ${{ matrix.julia-version }}
       - name: Install dependencies
