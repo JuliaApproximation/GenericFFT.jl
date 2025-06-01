@@ -41,7 +41,7 @@ function generic_fft!(x, region::Integer)
     _generic_fft!(x, Rpre, Rpost)
 end
 
-function generic_fft!(x, region)
+function generic_fft!(x, region=ntuple(identity, ndims(x)))
     for r in region
         generic_fft!(x, r)
     end
