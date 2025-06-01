@@ -28,29 +28,29 @@ function generic_fft!(x::AbstractVector{T}, region) where {T<:AbstractFloats}
     copyto!(x, generic_fft(x))
 end
 
-function generic_fft!(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats
-    if region == 1
-        for j in 1:size(x, 2)
-            x[:, j] .= generic_fft(@view x[:, j])
-        end
-    else
-        for k in 1:size(x, 1)
-            x[k, :] .= generic_fft(@view x[k, :])
-        end
+function _generic_fft!(x, Rpre, Rpost)
+    for Ipost in Rpost, Ipre in Rpre
+        generic_fft!(@view x[Ipre, :, Ipost])
     end
     x
 end
 
-function generic_fft!(x::AbstractMatrix{T}, region) where T<:AbstractFloats
+function generic_fft!(x, region::Integer)
+    Rpre = CartesianIndices(size(x)[1:region-1])
+    Rpost = CartesianIndices(size(x)[region+1:end])
+    _generic_fft!(x, Rpre, Rpost)
+end
+
+function generic_fft!(x, region)
     for r in region
         generic_fft!(x, r)
     end
     x
 end
 
-generic_fft(x::AbstractMatrix{T}, region::Integer) where T<:AbstractFloats = generic_fft!(copy(x), region)
+generic_fft(x, region::Integer) = generic_fft!(copy(x), region)
 
-generic_fft(x::AbstractMatrix{T}, region=ntuple(identity, ndims(x))) where T<:AbstractFloats = generic_fft!(copy(x), region)
+generic_fft(x, region=ntuple(identity, ndims(x))) = generic_fft!(copy(x), region)
 
 function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)

@@ -176,4 +176,14 @@ end
     X̃ = copy(X)
     @test generic_fft(X) ≈ generic_fft(X, 1:2) ≈ generic_fft!(X̃,1:2) ≈ fft(X)
     @test X̃ ≈ fft(X)
+
+    X = randn(ComplexF64, 5, 6, 7)
+    for d in 1:3
+        X̃ = copy(X)
+        @test generic_fft(X,d) ≈ generic_fft(X, d:d) ≈ generic_fft!(X̃, (d,)) ≈ fft(X,d)
+        @test X̃ ≈ fft(X,d)
+    end
+    X̃ = copy(X)
+    @test generic_fft(X) ≈ generic_fft(X, 1:ndims(X)) ≈ generic_fft!(X̃, 1:ndims(X̃)) ≈ fft(X)
+    @test X̃ ≈ fft(X)
 end
