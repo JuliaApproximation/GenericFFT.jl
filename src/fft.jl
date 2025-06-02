@@ -97,15 +97,14 @@ end
 # c_radix2.c in the GNU Scientific Library and four1 in the Numerical Recipes in C.
 # However, the trigonometric recurrence is improved for greater efficiency.
 # The algorithm starts with bit-reversal, then divides and conquers in-place.
-function generic_fft_pow2!(x::AbstractVector{T}) where T<:AbstractFloat
-    n,big2=length(x),2one(T)
+function generic_fft_pow2!(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
+    n,big2=2length(x),2one(T)
     nn,j=n÷2,1
-    for i=1:2:n-1
+    for i=1:nn
         if j>i
             x[j], x[i] = x[i], x[j]
-            x[j+1], x[i+1] = x[i+1], x[j+1]
         end
-        m = nn
+        m = nn÷2
         while m ≥ 2 && j > m
             j -= m
             m = m÷2
@@ -121,9 +120,11 @@ function generic_fft_pow2!(x::AbstractVector{T}) where T<:AbstractFloat
         for m=1:2:logn-1
             for i=m:2logn:n
                 j=i+logn
-                mixr, mixi = wr*x[j]-wi*x[j+1], wr*x[j+1]+wi*x[j]
-                x[j], x[j+1] = x[i]-mixr, x[i+1]-mixi
-                x[i], x[i+1] = x[i]+mixr, x[i+1]+mixi
+                i = i ÷ 2 + 1
+                j = j ÷ 2 + 1
+                mixr, mixi = wr*real(x[j])-wi*imag(x[j]), wr*imag(x[j])+wi*real(x[j])
+                x[j] = real(x[i])-mixr + im * (imag(x[i])-mixi)
+                x[i] = real(x[i])+mixr + im * (imag(x[i])+mixi)
             end
             wr = (wtemp=wr)*wpr-wi*wpi+wr
             wi = wi*wpr+wtemp*wpi+wi
@@ -134,16 +135,16 @@ function generic_fft_pow2!(x::AbstractVector{T}) where T<:AbstractFloat
 end
 
 function generic_fft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
-    y = interlace_complex(x)
-    generic_fft_pow2!(y)
-    return deinterlace_complex(y)
+    return generic_fft_pow2!(copy(x))
 end
 generic_fft_pow2(x::AbstractVector{T}) where T<:AbstractFloat = generic_fft_pow2(complex(x))
 
 function generic_ifft_pow2(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
-    y = interlace_complex(x, -)
+    y = conj.(x)  # always create copy (conj(x) doesn't copy when eltype(x) is real)
     generic_fft_pow2!(y)
-    return ldiv!(T(length(x)), deinterlace_complex(y, -))
+    N = T(length(x))
+    @. y = conj(y) / N
+    return y
 end
 
 function generic_dct(x::StridedVector{T}, region::Integer) where T<:AbstractFloats
