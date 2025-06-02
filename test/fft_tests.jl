@@ -192,4 +192,13 @@ end
     @test generic_fft(X, (2,1)) ≈ fft(X, (2,1))
     @test X1 ≈ fft(X)
     @test X2 ≈ fft(X)
+
+    N = 32
+    A1 = randn(ComplexF64, N)
+    @allocations generic_fft!(A1)  # compile
+    @test 0 == @allocations generic_fft!(A1)
+
+    A2 = randn(ComplexF64, N, N, N)
+    @allocations generic_fft!(A2)  # compile
+    @test N > @allocations generic_fft!(A2)  # a few allocations is OK
 end

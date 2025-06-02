@@ -8,26 +8,6 @@ const ComplexFloats = Complex{T} where T<:AbstractFloat
 # The following implements Bluestein's algorithm, following http://www.dsprelated.com/dspbooks/mdft/Bluestein_s_FFT_Algorithm.html
 # To add more types, add them in the union of the function's signature.
 
-function generic_fft(x::AbstractVector{T}, region::Integer) where T<:AbstractFloats
-    @assert region == 1
-    generic_fft(x)
-end
-
-function generic_fft!(x::AbstractVector{T}, region::Integer=1) where T<:AbstractFloats
-    @assert region == 1
-    copyto!(x, generic_fft(x))
-end
-
-function generic_fft(x::AbstractVector{T}, region) where {T<:AbstractFloats}
-    @assert all(==(1), region)
-    generic_fft(x)
-end
-
-function generic_fft!(x::AbstractVector{T}, region) where {T<:AbstractFloats}
-    @assert all(==(1), region)
-    copyto!(x, generic_fft(x))
-end
-
 function _generic_fft!(x, Rpre, Rpost)
     for Ipost in Rpost, Ipre in Rpre
         generic_fft!(@view x[Ipre, :, Ipost])
@@ -36,6 +16,7 @@ function _generic_fft!(x, Rpre, Rpost)
 end
 
 function generic_fft!(x, region::Integer)
+    @assert 1 <= region <= ndims(x)
     Rpre = CartesianIndices(size(x)[1:region-1])
     Rpost = CartesianIndices(size(x)[region+1:end])
     _generic_fft!(x, Rpre, Rpost)
@@ -51,6 +32,13 @@ end
 generic_fft(x, region::Integer) = generic_fft!(copy(x), region)
 
 generic_fft(x, region=ntuple(identity, ndims(x))) = generic_fft!(copy(x), region)
+
+function generic_fft!(x::AbstractVector{Complex{T}}) where {T<:AbstractFloat}
+    if ispow2(length(x))
+        return generic_fft_pow2!(x)
+    end
+    return copyto!(x, generic_fft(x))
+end
 
 function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)
