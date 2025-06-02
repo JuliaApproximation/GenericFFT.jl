@@ -114,22 +114,19 @@ function generic_fft_pow2!(x::AbstractVector{Complex{T}}) where T<:AbstractFloat
     logn = 2
     while logn < n
         θ=-big2/logn
-        wtemp = sinpi(θ/2)
-        wpr, wpi = -2wtemp^2, sinpi(θ)
-        wr, wi = one(T), zero(T)
-        for m=1:2:logn-1
-            for i=m:2logn:n
-                j=i+logn
-                i = i ÷ 2 + 1
-                j = j ÷ 2 + 1
-                mixr, mixi = wr*real(x[j])-wi*imag(x[j]), wr*imag(x[j])+wi*real(x[j])
-                x[j] = real(x[i])-mixr + im * (imag(x[i])-mixi)
-                x[i] = real(x[i])+mixr + im * (imag(x[i])+mixi)
+        wp = complex(-2sinpi(θ/2)^2, sinpi(θ))
+        w = complex(one(T))
+        lognn = logn ÷ 2
+        for m=1:lognn
+            for i=m:logn:nn
+                j=i+lognn
+                mix = w * x[j]
+                x[j] = x[i] - mix
+                x[i] = x[i] + mix
             end
-            wr = (wtemp=wr)*wpr-wi*wpi+wr
-            wi = wi*wpr+wtemp*wpi+wi
+            w = w * (1 + wp)
         end
-        logn = logn << 1
+        logn = 2logn
     end
     return x
 end
