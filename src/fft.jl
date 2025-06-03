@@ -8,37 +8,82 @@ const ComplexFloats = Complex{T} where T<:AbstractFloat
 # The following implements Bluestein's algorithm, following http://www.dsprelated.com/dspbooks/mdft/Bluestein_s_FFT_Algorithm.html
 # To add more types, add them in the union of the function's signature.
 
-function _generic_fft!(x, Rpre, Rpost)
-    for Ipost in Rpost, Ipre in Rpre
-        generic_fft!(@view x[Ipre, :, Ipost])
-    end
-    x
-end
-
-function generic_fft!(x, region::Integer)
-    @assert 1 <= region <= ndims(x)
-    Rpre = CartesianIndices(size(x)[1:region-1])
-    Rpost = CartesianIndices(size(x)[region+1:end])
-    _generic_fft!(x, Rpre, Rpost)
-end
-
-function generic_fft!(x, region=ntuple(identity, ndims(x)))
-    for r in region
-        generic_fft!(x, r)
-    end
-    x
-end
-
-generic_fft(x, region::Integer) = generic_fft!(copy(x), region)
-
-generic_fft(x, region=ntuple(identity, ndims(x))) = generic_fft!(copy(x), region)
-
 function generic_fft!(x::AbstractVector{Complex{T}}) where {T<:AbstractFloat}
     if ispow2(length(x))
         return generic_fft_pow2!(x)
     end
     return copyto!(x, generic_fft(x))
 end
+
+generic_fft!(x::AbstractVector) = copyto!(x, generic_fft(x))
+
+function generic_fft!(x::AbstractVector{Complex{T}}, region::Integer) where {T<:AbstractFloat}
+    @assert region == 1
+    generic_fft!(x)
+end
+
+function _generic_fft_first_dim!(x, Ipost)
+    Threads.@threads for I in Ipost
+        generic_fft!(@view x[:, I])
+    end
+    x
+end
+
+function generic_fft!(x, region::Integer)
+    @assert 1 <= region <= ndims(x)
+
+    perm = ntuple(ndims(x)) do i
+        if i == 1
+            region
+        elseif i == region
+            1
+        else
+            i
+        end
+    end
+
+    y = permutedims(x, perm)
+
+    Rright = CartesianIndices(size(y)[2:end])
+    y = _generic_fft_first_dim!(y, Rright)
+
+    permutedims!(x, y, perm)
+    x
+end
+
+function generic_fft!(x, region)
+    for r in region
+        generic_fft!(x, r)
+    end
+    x
+end
+
+function generic_fft!(x)
+    y = similar(x)
+    z = x
+    sz = size(x)
+    perm = ((2:ndims(x))..., 1)
+
+    for r in 1:ndims(x)
+        Rright = CartesianIndices(size(z)[2:end])
+        _generic_fft_first_dim!(z, Rright)
+
+        sz = (sz[2:end]..., sz[1])
+        y = reshape(y, sz)
+        permutedims!(y, z, perm)
+        z, y = y, z
+    end
+
+    if isodd(ndims(x))
+        x .= z
+    end
+    x
+end
+
+
+generic_fft(x, region) = generic_fft!(copy(x), region)
+
+generic_fft(x) = generic_fft!(copy(x))
 
 function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)
