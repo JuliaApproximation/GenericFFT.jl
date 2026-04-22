@@ -174,6 +174,31 @@ end
     @test generic_fft(X,2) ≈ generic_fft(X, 2:2) ≈ generic_fft!(X̃,2) ≈ fft(X,2)
     @test X̃ ≈ fft(X,2)
     X̃ = copy(X)
-    @test generic_fft(X) ≈ generic_fft(X, 1:2) ≈ generic_fft!(X̃,1:2) ≈ fft(X)
+    @test generic_fft(X) ≈ generic_fft(X, 1:2) ≈ generic_fft!(X̃) ≈ fft(X)
     @test X̃ ≈ fft(X)
+
+    X = randn(ComplexF64, 5, 6, 7)
+    for d in 1:3
+        X̃ = copy(X)
+        @test generic_fft(X,d) ≈ generic_fft(X, d:d) ≈ generic_fft!(X̃, (d,)) ≈ fft(X,d)
+        @test X̃ ≈ fft(X,d)
+    end
+    X1 = copy(X)
+    X2 = copy(X)
+    @test generic_fft(X) ≈ generic_fft(X, 1:ndims(X)) ≈ generic_fft!(X1, 1:ndims(X1)) ≈ generic_fft!(X2) ≈ fft(X)
+    @test generic_fft(X, (1,3)) ≈ fft(X, (1,3))
+    @test generic_fft(X, (2,3)) ≈ fft(X, (2,3))
+    @test generic_fft(X, (1,2)) ≈ fft(X, (1,2))
+    @test generic_fft(X, (2,1)) ≈ fft(X, (2,1))
+    @test X1 ≈ fft(X)
+    @test X2 ≈ fft(X)
+
+    N = 32
+    A1 = randn(ComplexF64, N)
+    @allocations generic_fft!(A1)  # compile
+    @test 0 == @allocations generic_fft!(A1)
+
+    A2 = randn(ComplexF64, N, N, N)
+    @allocations generic_fft!(A2)  # compile
+    @test N+150 > @allocations generic_fft!(A2)  # a few allocations is OK
 end
