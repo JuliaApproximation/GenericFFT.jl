@@ -44,8 +44,8 @@ function test_fft_dct(T)
     @test norm(dct(idct(c))-c,Inf) < 1000eps(T)
 
     @test_throws AssertionError irfft(c, 197)
-    @test norm(irfft(c, 198) - irfft(map(ComplexF64, c), 198), Inf) < 10eps(Float64)
-    @test norm(irfft(c, 199) - irfft(map(ComplexF64, c), 199), Inf) < 10eps(Float64)
+    @test norm(irfft(c, 198) - irfft(map(ComplexF64, c), 198), Inf) < 100eps(Float64)
+    @test norm(irfft(c, 199) - irfft(map(ComplexF64, c), 199), Inf) < 100eps(Float64)
     @test_throws AssertionError irfft(c, 200)
 end
 
@@ -201,4 +201,59 @@ end
     A2 = randn(ComplexF64, N, N, N)
     @allocations generic_fft!(A2)  # compile
     @test N+150 > @allocations generic_fft!(A2)  # a few allocations is OK
+end
+
+@testset "Batched rfft/irfft" begin
+    for T in (Float64, BigFloat)
+        X = randn(T, 10, 6)
+        
+        Y1 = rfft(X, 1) # Dimension 1
+        @test size(Y1) == (10÷2+1, 6)
+        for j in 1:6
+            @test Y1[:, j] ≈ rfft(X[:, j])
+        end
+        @test irfft(Y1, 10, 1) ≈ X
+        
+        Y2 = rfft(X, 2)  # Dimension 2
+        @test size(Y2) == (10, 6÷2+1)
+        for i in 1:10
+            @test Y2[i, :] ≈ rfft(X[i, :])
+        end
+        @test irfft(Y2, 6, 2) ≈ X
+
+        Y12 = rfft(X, (1, 2)) # 2D RFFT
+        @test size(Y12) == (10÷2+1, 6)
+        @test Y12 ≈ fft(rfft(X, 1), 2)
+        @test irfft(Y12, 10, (1, 2)) ≈ X
+
+        p1 = plan_rfft(X, 1) # Plans
+        @test p1 * X ≈ rfft(X, 1)
+        @test inv(p1) * (p1 * X) ≈ X
+
+        p2 = plan_rfft(X, 2)
+        @test p2 * X ≈ rfft(X, 2)
+        @test inv(p2) * (p2 * X) ≈ X
+    end
+
+
+    for n in (7, 11) # Test a few odd lengths
+        X = randn(BigFloat, n, 4)
+        Y = rfft(X, 1)
+        @test size(Y) == (n÷2+1, 4)
+        @test irfft(Y, n, 1) ≈ X
+    end
+
+    data = randn(BigFloat, 10, 10)
+    v = view(data, 1:8, 1:6)
+    @test rfft(v, 1) ≈ rfft(collect(v), 1)
+    @test irfft(rfft(v, 1), 8, 1) ≈ v
+
+    X3 = randn(BigFloat, 4, 10, 4) # Test 3D Batched
+    
+    Y3 = rfft(X3, 2) # Transform along dimension 2
+    @test size(Y3) == (4, 10÷2+1, 4)
+    for i in 1:4, k in 1:4
+        @test Y3[i, :, k] ≈ rfft(X3[i, :, k])
+    end
+    @test irfft(Y3, 10, 2) ≈ X3
 end

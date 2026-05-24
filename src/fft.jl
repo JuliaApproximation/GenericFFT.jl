@@ -81,9 +81,9 @@ function generic_fft!(x)
 end
 
 
-generic_fft(x, region) = generic_fft!(copy(x), region)
+generic_fft(x, region) = generic_fft!(copy(complex(x)), region)
 
-generic_fft(x) = generic_fft!(copy(x))
+generic_fft(x) = generic_fft!(copy(complex(x)))
 
 function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)
@@ -105,14 +105,64 @@ generic_ifft(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv
 generic_ifft!(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, N} = ldiv!(T(_regionscale(x, region)), conj!(generic_fft!(conj!(x), region)))
 
 generic_rfft(v::AbstractVector{T}, region) where T<:AbstractFloats = generic_fft(v, region)[1:div(length(v),2)+1]
+
+function generic_rfft(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, N}
+    d = first(region)
+    if length(region) > 1
+        return generic_fft(generic_rfft(x, d), region[2:end])
+    end
+
+    # Batched 1D RFFT along dimension d
+    nout = size(x, d) ÷ 2 + 1
+    sz = collect(size(x))
+    sz[d] = nout
+    out = similar(x, Complex{real(T)}, tuple(sz...))
+
+    Rpre = CartesianIndices(size(x)[1:d-1])
+    Rpost = CartesianIndices(size(x)[d+1:end])
+
+    Threads.@threads for Ipost in Rpost
+        for Ipre in Rpre
+            out[Ipre, :, Ipost] .= generic_rfft(view(x, Ipre, :, Ipost), 1)
+        end
+    end
+    return out
+end
+
 function generic_irfft(v::AbstractVector{T}, n::Integer, region) where T<:ComplexFloats
     @assert length(v) == n>>1 + 1
     r = Vector{T}(undef, n)
     r[1:length(v)]=v
     r[length(v)+1:n]=reverse(conj(v[2:end])[1:n-length(v)])
-    real(generic_ifft(r, region))
+    return real(generic_ifft(r, region))
 end
-generic_brfft(v::AbstractArray, n::Integer, region) = generic_irfft(v, n, region)*n
+
+function generic_irfft(x::AbstractArray{T, N}, n::Integer, region) where {T<:ComplexFloats, N}
+    d = first(region)
+    if length(region) > 1
+        return generic_irfft(generic_ifft(x, region[2:end]), n, d)
+    end
+
+    # Batched 1D IRFFT along dimension d
+    sz = collect(size(x))
+    sz[d] = n
+    out = similar(x, real(T), tuple(sz...))
+
+    Rpre = CartesianIndices(size(x)[1:d-1])
+    Rpost = CartesianIndices(size(x)[d+1:end])
+
+    Threads.@threads for Ipost in Rpost
+        for Ipre in Rpre
+            out[Ipre, :, Ipost] .= generic_irfft(view(x, Ipre, :, Ipost), n, 1)
+        end
+    end
+    return out
+end
+
+function generic_brfft(v::AbstractArray, n::Integer, region)
+    scale = n * _regionscale(v, region isa Integer ? () : region[2:end])
+    return generic_irfft(v, n, region) * scale
+end
 
 function _conv!(u::AbstractVector{T}, v::AbstractVector{T}) where T<:AbstractFloats
     nu = length(u)
@@ -262,7 +312,7 @@ for P in (:DummyFFTPlan, :DummyiFFTPlan, :DummybFFTPlan, :DummyDCTPlan, :DummyiD
     @eval begin
         mutable struct $P{T,inplace,G} <: DummyPlan{T}
             region::G # region (iterable) of dims that are transformed
-            pinv::DummyPlan{T}
+            pinv::Plan
             $P{T,inplace,G}(region::G) where {T<:AbstractFloats, inplace, G} = new(region)
         end
     end
@@ -272,7 +322,7 @@ for P in (:DummyrFFTPlan, :DummyirFFTPlan, :DummybrFFTPlan)
         mutable struct $P{T,inplace,G} <: DummyPlan{T}
             n::Integer
             region::G # region (iterable) of dims that are transformed
-            pinv::DummyPlan{T}
+            pinv::Plan
             $P{T,inplace,G}(n::Integer, region::G) where {T<:AbstractFloats, inplace, G} = new(n, region)
         end
     end
@@ -287,8 +337,8 @@ for (Plan,iPlan) in ((:DummyFFTPlan,:DummyiFFTPlan),
 end
 
 # Specific for rfft, irfft and brfft:
-plan_inv(p::DummyirFFTPlan{T,inplace,G}) where {T,inplace,G} = DummyrFFTPlan{T,inplace,G}(p.n, p.region)
-plan_inv(p::DummyrFFTPlan{T,inplace,G}) where {T,inplace,G} = DummyirFFTPlan{T,inplace,G}(p.n, p.region)
+plan_inv(p::DummyirFFTPlan{T,inplace,G}) where {T,inplace,G} = DummyrFFTPlan{real(T),inplace,G}(p.n, p.region)
+plan_inv(p::DummyrFFTPlan{T,inplace,G}) where {T,inplace,G} = DummyirFFTPlan{Complex{T},inplace,G}(p.n, p.region)
 
 
 
@@ -345,11 +395,11 @@ plan_dct!(x::StridedArray{T}, region) where {T <: AbstractFloats} = DummyDCTPlan
 plan_idct(x::StridedArray{T}, region) where {T <: AbstractFloats} = DummyiDCTPlan{T,false,typeof(region)}(region)
 plan_idct!(x::StridedArray{T}, region) where {T <: AbstractFloats} = DummyiDCTPlan{T,true,typeof(region)}(region)
 
-plan_rfft(x::StridedArray{T}, region) where {T <: RealFloats} = DummyrFFTPlan{T,false,typeof(region)}(length(x), region)
+plan_rfft(x::StridedArray{T}, region) where {T <: RealFloats} = DummyrFFTPlan{T,false,typeof(region)}(size(x, first(region)), region)
 plan_brfft(x::StridedArray{T}, n::Integer, region) where {T <: ComplexFloats} = DummybrFFTPlan{T,false,typeof(region)}(n, region)
 
-# A plan for irfft is created in terms of a plan for brfft.
-# plan_irfft(x::StridedArray{T}, n::Integer, region) where {T <: ComplexFloats} = DummyirFFTPlan{Complex{real(T)},false,typeof(region)}(n, region)
+# Explicitly define plan_irfft to ensure correct scaling
+plan_irfft(x::StridedArray{T}, n::Integer, region) where {T <: ComplexFloats} = DummyirFFTPlan{T,false,typeof(region)}(n, region)
 
 # These don't exist for now:
 # plan_rfft!(x::StridedArray{T}) where {T <: RealFloats} = DummyrFFTPlan{Complex{real(T)},true}()
