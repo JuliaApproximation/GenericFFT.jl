@@ -256,4 +256,25 @@ end
         @test Y3[i, :, k] ≈ rfft(X3[i, :, k])
     end
     @test irfft(Y3, 10, 2) ≈ X3
+
+    X4 = randn(BigFloat, 3, 3, 3, 3) # Test 4D
+    Y4 = rfft(X4, (1, 2, 3)) # RFFT over first 3 dimensions
+    @test size(Y4) == (3÷2+1, 3, 3, 3)
+    @test irfft(Y4, 3, (1, 2, 3)) ≈ X4
+    @test irfft(rfft(X4, (1, 2, 3, 4)), 3, (1, 2, 3, 4)) ≈ X4
+
+    X_single = randn(BigFloat, 10, 1)
+    @test rfft(X_single, 1) ≈ rfft(vec(X_single))
+    @test irfft(rfft(X_single, 1), 10, 1) ≈ X_single
+
+    X_br = randn(BigFloat, 10, 6)
+    Y_br = rfft(X_br, (1, 2))
+    # brfft should be irfft * (10 * 6)
+    @test brfft(Y_br, 10, (1, 2)) ≈ irfft(Y_br, 10, (1, 2)) * 60
+end
+
+@testset "Real-input generic_fft coverage" begin
+    X = randn(BigFloat, 8, 8)
+    @test GenericFFT.generic_fft(X, 1) ≈ fft(complex(X), 1)
+    @test GenericFFT.generic_fft(X, (1, 2)) ≈ fft(complex(X))
 end

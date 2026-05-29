@@ -112,7 +112,6 @@ function generic_rfft(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, 
         return generic_fft(generic_rfft(x, d), region[2:end])
     end
 
-    # Batched 1D RFFT along dimension d
     nout = size(x, d) ÷ 2 + 1
     sz = collect(size(x))
     sz[d] = nout
@@ -143,7 +142,6 @@ function generic_irfft(x::AbstractArray{T, N}, n::Integer, region) where {T<:Com
         return generic_irfft(generic_ifft(x, region[2:end]), n, d)
     end
 
-    # Batched 1D IRFFT along dimension d
     sz = collect(size(x))
     sz[d] = n
     out = similar(x, real(T), tuple(sz...))
@@ -321,7 +319,7 @@ for P in (:DummyrFFTPlan, :DummyirFFTPlan, :DummybrFFTPlan)
     @eval begin
         mutable struct $P{T,inplace,G} <: DummyPlan{T}
             n::Integer
-            region::G # region (iterable) of dims that are transformed
+            region::G
             pinv::Plan
             $P{T,inplace,G}(n::Integer, region::G) where {T<:AbstractFloats, inplace, G} = new(n, region)
         end
