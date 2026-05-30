@@ -20,7 +20,7 @@ function generic_fft!(x::AbstractVector{Complex{T}}, region::Integer) where {T<:
 end
 
 function _generic_fft_first_dim!(x, Ipost)
-    Threads.@threads for I in Ipost
+    for I in Ipost
         generic_fft!(@view x[:, I])
     end
     x
@@ -124,7 +124,7 @@ function generic_rfft(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, 
     Rpre = CartesianIndices(size(x)[1:d-1])
     Rpost = CartesianIndices(size(x)[d+1:end])
 
-    Threads.@threads for Ipost in Rpost
+    for Ipost in Rpost
         for Ipre in Rpre
             out[Ipre, :, Ipost] .= generic_rfft(view(x, Ipre, :, Ipost), 1)
         end
@@ -153,7 +153,7 @@ function generic_irfft(x::AbstractArray{T, N}, n::Integer, region) where {T<:Com
     Rpre = CartesianIndices(size(x)[1:d-1])
     Rpost = CartesianIndices(size(x)[d+1:end])
 
-    Threads.@threads for Ipost in Rpost
+    for Ipost in Rpost
         for Ipre in Rpre
             out[Ipre, :, Ipost] .= generic_irfft(view(x, Ipre, :, Ipost), n, 1)
         end
