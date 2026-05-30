@@ -166,18 +166,6 @@ function generic_brfft(v::AbstractArray, n::Integer, region)
     return generic_irfft(v, n, region) * scale
 end
 
-#function _conv!(u::AbstractVector{T}, v::AbstractVector{T}) where T<:AbstractFloats
-#    nu = length(u)
-#    nv = length(v)
-#    n = nu + nv - 1
-#    np2 = nextpow(2, n)
-#    append!(u, zeros(T, np2-nu))
-#    append!(v, zeros(T, np2-nv))
-#    y = generic_ifft_pow2(generic_fft_pow2(u).*generic_fft_pow2(v))
-    #TODO This would not handle Dual/ComplexDual numbers correctly
-#    y = T<:Real ? real(y[1:n]) : y[1:n]
-#end
-
 function _conv!(u::AbstractVector{T}, v::AbstractVector{T}) where T<:AbstractFloats
     nu, nv = length(u), length(v)
     n  = nu + nv - 1
