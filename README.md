@@ -39,7 +39,29 @@ julia> fft(rand(Double64, 2))
 2-element Vector{Complex{Double64}}:
  0.4026739024263829 + 0.0im
  0.3969515892883767 + 0.0im
- ```
+```
+
+## Usage for low-precision FFTs
+
+```julia
+julia> using GenericFFT, BFloat16s
+
+julia> fs = 1000.0        
+julia> t  = 0:1/fs:1-1/fs 
+julia> f1, f2 = 50.0, 120.0
+
+julia> T = Float16
+julia> # see: https://www.mathworks.com/help/matlab/ref/fft.html
+julia> x = T.(0.7*sin.(2π * f1 * t) .+ 0.5 * sin.(2π * f2 * t)) .+ T(0.8) 
+julia> X = fft(x)
+julia> println("Max round-trip error: ", maximum(abs.(x - real(ifft(X)))))
+
+julia> T = BFloat16
+julia> x = T.(0.7*sin.(2π * f1 * t) .+ 0.5 * sin.(2π * f2 * t)) .+ T(0.8) 
+julia> X = fft(x)
+julia> println("Max round-trip error: ", maximum(abs.(x - real(ifft(X)))))
+```
+
 
 ## History
 

@@ -1,4 +1,4 @@
-using DoubleFloats, FFTW, GenericFFT, LinearAlgebra
+using BFloat16s, DoubleFloats, LinearAlgebra
 import GenericFFT: generic_fft, generic_fft!
 
 function test_basic_functionality()
@@ -277,4 +277,81 @@ end
     X = randn(BigFloat, 8, 8)
     @test GenericFFT.generic_fft(X, 1) ≈ fft(complex(X), 1)
     @test GenericFFT.generic_fft(X, (1, 2)) ≈ fft(complex(X))
+end
+
+@testset "Real-input dispatch — fft(x) routes through GenericFFT" begin
+    for T in (Float16, BFloat16, BigFloat)
+        x = T.(randn(64))
+        @test plan_fft(x, 1:1) isa GenericFFT.DummyPlan
+        @test plan_fft(x, 1) isa GenericFFT.DummyPlan
+    end
+end
+
+@testset "No stack overflow for real input — non-power-of-2" begin
+    for T in (Float16, BFloat16, BigFloat)
+        x = T.(randn(100))
+        @test_nowarn fft(x)
+        @test_nowarn fft(x, 1)
+    end
+end
+
+@testset "Chirp index arithmetic in Float64 — no k² precision loss" begin
+    for T in (Float16, BFloat16, BigFloat)
+        n = 1000
+        S = promote_type(real(T), Float64)
+        ks = range(zero(S), stop=S(n)-one(S), length=n)
+        Wks = Complex{real(T)}.(cispi.(-ks.^2 ./ S(n)))
+        for k in [100, 500, 999]
+            ref = cispi(-Float64(k-1)^2 / n)
+            err = abs(ref - Complex{Float64}(Wks[k]))
+            @test err < 1e-2
+        end
+    end
+end
+
+@testset "Non-power-of-2 round-trip — no overflow or precision collapse" begin
+    for T in (Float16, BFloat16, BigFloat)
+        for n in (100, 500, 1000)
+            x   = T.(randn(n))
+            X   = fft(x)
+            xr  = real(ifft(X))
+            err = maximum(abs.(Float64.(x) .- Float64.(xr)))
+            @test !isnan(err)
+            tol = 200 * Float64(eps(real(T)(1))) * log2(n)
+            @test err < tol
+        end
+    end
+end
+
+@testset "BigFloat precision preserved — ks range stays in BigFloat" begin
+    setprecision(256) do
+        n   = 1000
+        x   = randn(BigFloat, n)
+        X   = fft(x)
+        xr  = real(ifft(X))
+        err = maximum(abs.(x .- xr))
+        @test err < 1e-60
+    end
+end
+
+@testset "Wks complex — no InexactError for real T" begin
+    for T in (Float16, BFloat16, BigFloat)
+        n = 100
+        S = promote_type(real(T), Float64)
+        ks = range(zero(S), stop=S(n)-one(S), length=n)
+        @test_nowarn Complex{real(T)}.(cispi.(-ks.^2 ./ S(n)))
+    end
+end
+
+@testset "Dominant frequency bins correct after all fixes" begin
+    for T in (Float16, BFloat16, BigFloat)
+        fs = 1000.0
+        t  = (0:999) ./ fs
+        x  = T.(sin.(2π * 50 * t) .+ 0.5 * sin.(2π * 200 * t))
+        X  = fft(x)
+        mags = abs.(Complex{Float64}.(X))
+        top4 = sortperm(mags, rev=true)[1:4]
+        @test 51  ∈ top4
+        @test 201 ∈ top4
+    end
 end

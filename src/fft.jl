@@ -1,12 +1,9 @@
-const AbstractFloats = Union{AbstractFloat,Complex{T} where T<:AbstractFloat}
-
 # We use these type definitions for clarity
 const RealFloats = T where T<:AbstractFloat
 const ComplexFloats = Complex{T} where T<:AbstractFloat
-
+const AbstractFloats = Union{RealFloats, ComplexFloats}
 
 # The following implements Bluestein's algorithm, following http://www.dsprelated.com/dspbooks/mdft/Bluestein_s_FFT_Algorithm.html
-# To add more types, add them in the union of the function's signature.
 
 function generic_fft!(x::AbstractVector{Complex{T}}) where {T<:AbstractFloat}
     if ispow2(length(x))
@@ -81,18 +78,24 @@ function generic_fft!(x)
 end
 
 
-generic_fft(x, region) = generic_fft!(copy(complex(x)), region)
+# generic_fft(x, region) = generic_fft!(copy(complex(x)), region)
+# generic_fft(x) = generic_fft!(copy(complex(x)))
 
-generic_fft(x) = generic_fft!(copy(complex(x)))
+copycomplex(A::AbstractArray{<:Complex}) = copy(A)
+copycomplex(A::AbstractArray{<:Real}) = complex(A)
+generic_fft(x, region) = generic_fft!(copycomplex(x), region)
+generic_fft(x) = generic_fft!(copycomplex(x))
+
 
 function generic_fft(x::AbstractVector{T}) where T<:AbstractFloats
     n = length(x)
     ispow2(n) && return generic_fft_pow2(x)
-    ks = range(zero(real(T)),stop=n-one(real(T)),length=n)
-    Wks = @. cispi(-T(ks^2/n))
+    S = promote_type(real(T), Float64)
+    ks = range(zero(S), stop=S(n)-one(S), length=n)
+    Wks = Complex{real(T)}.(cispi.(-ks.^2 ./ S(n)))    # always Complex
     Wksrev = @view Wks[reverse(eachindex(Wks))]
-    xq, wq = x.*Wks, conj!([cispi(-T(n)); Wksrev; @view Wks[2:end]])
-    return Wks.* @view _conv!(xq,wq)[n+1:2n]
+    xq, wq = complex(x).*Wks, conj!([Complex{real(T)}(cispi(-S(n))); Wksrev; @view Wks[2:end]])
+    return Wks .* @view _conv!(xq,wq)[n+1:2n]
 end
 
 generic_bfft(x::AbstractArray{T, N}, region) where {T <: AbstractFloats, N} = conj!(generic_fft(conj(x), region))
@@ -117,6 +120,7 @@ function generic_rfft(x::AbstractArray{T, N}, region) where {T<:AbstractFloats, 
     sz[d] = nout
     out = similar(x, Complex{real(T)}, tuple(sz...))
 
+    # CartesianIndices enables iterating over slices in arbitrary dimensions
     Rpre = CartesianIndices(size(x)[1:d-1])
     Rpost = CartesianIndices(size(x)[d+1:end])
 
@@ -162,17 +166,31 @@ function generic_brfft(v::AbstractArray, n::Integer, region)
     return generic_irfft(v, n, region) * scale
 end
 
+#function _conv!(u::AbstractVector{T}, v::AbstractVector{T}) where T<:AbstractFloats
+#    nu = length(u)
+#    nv = length(v)
+#    n = nu + nv - 1
+#    np2 = nextpow(2, n)
+#    append!(u, zeros(T, np2-nu))
+#    append!(v, zeros(T, np2-nv))
+#    y = generic_ifft_pow2(generic_fft_pow2(u).*generic_fft_pow2(v))
+    #TODO This would not handle Dual/ComplexDual numbers correctly
+#    y = T<:Real ? real(y[1:n]) : y[1:n]
+#end
+
 function _conv!(u::AbstractVector{T}, v::AbstractVector{T}) where T<:AbstractFloats
-    nu = length(u)
-    nv = length(v)
-    n = nu + nv - 1
+    nu, nv = length(u), length(v)
+    n  = nu + nv - 1
     np2 = nextpow(2, n)
     append!(u, zeros(T, np2-nu))
     append!(v, zeros(T, np2-nv))
-    y = generic_ifft_pow2(generic_fft_pow2(u).*generic_fft_pow2(v))
-    #TODO This would not handle Dual/ComplexDual numbers correctly
-    y = T<:Real ? real(y[1:n]) : y[1:n]
+    S = promote_type(real(T), Float64)
+    uf = Complex{S}.(u)
+    vf = Complex{S}.(v)
+    y = generic_ifft_pow2(generic_fft_pow2(uf) .* generic_fft_pow2(vf))
+    y = T <: Real ? T.(real(y[1:n])) : T.(y[1:n])
 end
+
 
 # This is a Cooley-Tukey FFT algorithm inspired by many widely available algorithms including:
 # c_radix2.c in the GNU Scientific Library and four1 in the Numerical Recipes in C.
@@ -379,6 +397,14 @@ end
 
 plan_fft(x::StridedArray{T}, region) where {T <: ComplexFloats} = DummyFFTPlan{T,false,typeof(region)}(region)
 plan_fft!(x::StridedArray{T}, region) where {T <: ComplexFloats} = DummyFFTPlan{T,true,typeof(region)}(region)
+plan_fft(x::StridedArray{T}, region; kws...) where {T <: RealFloats} =
+    T <: FFTW.fftwReal ? invoke(plan_fft, Tuple{AbstractArray{<:Real}, Any}, x, region; kws...) : DummyFFTPlan{Complex{T},false,typeof(region)}(region)
+plan_fft!(x::StridedArray{T}, region; kws...) where {T <: RealFloats} =
+    T <: FFTW.fftwReal ? invoke(plan_fft!, Tuple{AbstractArray, Any}, x, region; kws...) : DummyFFTPlan{Complex{T},true,typeof(region)}(region)
+
+# intercept fft(x) before AbstractFFTs gets a chance for any non-FFTW float type.
+fft(x::StridedArray{T}) where {T<:AbstractFloats} = generic_fft(x)
+fft(x::StridedArray{T}, region) where {T<:AbstractFloats} = generic_fft(x, region)
 
 plan_bfft(x::StridedArray{T}, region) where {T <: ComplexFloats} = DummybFFTPlan{T,false,typeof(region)}(region)
 plan_bfft!(x::StridedArray{T}, region) where {T <: ComplexFloats} = DummybFFTPlan{T,true,typeof(region)}(region)
