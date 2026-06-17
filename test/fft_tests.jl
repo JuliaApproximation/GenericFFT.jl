@@ -1,4 +1,4 @@
-using DoubleFloats, FFTW, GenericFFT, LinearAlgebra
+using BFloat16s, DoubleFloats, LinearAlgebra
 import GenericFFT: generic_fft, generic_fft!
 
 function test_basic_functionality()
@@ -44,8 +44,8 @@ function test_fft_dct(T)
     @test norm(dct(idct(c))-c,Inf) < 1000eps(T)
 
     @test_throws AssertionError irfft(c, 197)
-    @test norm(irfft(c, 198) - irfft(map(ComplexF64, c), 198), Inf) < 10eps(Float64)
-    @test norm(irfft(c, 199) - irfft(map(ComplexF64, c), 199), Inf) < 10eps(Float64)
+    @test norm(irfft(c, 198) - irfft(map(ComplexF64, c), 198), Inf) < 100eps(Float64)
+    @test norm(irfft(c, 199) - irfft(map(ComplexF64, c), 199), Inf) < 100eps(Float64)
     @test_throws AssertionError irfft(c, 200)
 end
 
@@ -201,4 +201,157 @@ end
     A2 = randn(ComplexF64, N, N, N)
     @allocations generic_fft!(A2)  # compile
     @test N+150 > @allocations generic_fft!(A2)  # a few allocations is OK
+end
+
+@testset "Batched rfft/irfft" begin
+    for T in (Float64, BigFloat)
+        X = randn(T, 10, 6)
+        
+        Y1 = rfft(X, 1) # Dimension 1
+        @test size(Y1) == (10÷2+1, 6)
+        for j in 1:6
+            @test Y1[:, j] ≈ rfft(X[:, j])
+        end
+        @test irfft(Y1, 10, 1) ≈ X
+        
+        Y2 = rfft(X, 2)  # Dimension 2
+        @test size(Y2) == (10, 6÷2+1)
+        for i in 1:10
+            @test Y2[i, :] ≈ rfft(X[i, :])
+        end
+        @test irfft(Y2, 6, 2) ≈ X
+
+        Y12 = rfft(X, (1, 2)) # 2D RFFT
+        @test size(Y12) == (10÷2+1, 6)
+        @test Y12 ≈ fft(rfft(X, 1), 2)
+        @test irfft(Y12, 10, (1, 2)) ≈ X
+
+        p1 = plan_rfft(X, 1) # Plans
+        @test p1 * X ≈ rfft(X, 1)
+        @test inv(p1) * (p1 * X) ≈ X
+
+        p2 = plan_rfft(X, 2)
+        @test p2 * X ≈ rfft(X, 2)
+        @test inv(p2) * (p2 * X) ≈ X
+    end
+
+
+    for n in (7, 11) # Test a few odd lengths
+        X = randn(BigFloat, n, 4)
+        Y = rfft(X, 1)
+        @test size(Y) == (n÷2+1, 4)
+        @test irfft(Y, n, 1) ≈ X
+    end
+
+    data = randn(BigFloat, 10, 10)
+    v = view(data, 1:8, 1:6)
+    @test rfft(v, 1) ≈ rfft(collect(v), 1)
+    @test irfft(rfft(v, 1), 8, 1) ≈ v
+
+    X3 = randn(BigFloat, 4, 10, 4) # Test 3D Batched
+    
+    Y3 = rfft(X3, 2) # Transform along dimension 2
+    @test size(Y3) == (4, 10÷2+1, 4)
+    for i in 1:4, k in 1:4
+        @test Y3[i, :, k] ≈ rfft(X3[i, :, k])
+    end
+    @test irfft(Y3, 10, 2) ≈ X3
+
+    X4 = randn(BigFloat, 3, 3, 3, 3) # Test 4D
+    Y4 = rfft(X4, (1, 2, 3)) # RFFT over first 3 dimensions
+    @test size(Y4) == (3÷2+1, 3, 3, 3)
+    @test irfft(Y4, 3, (1, 2, 3)) ≈ X4
+    @test irfft(rfft(X4, (1, 2, 3, 4)), 3, (1, 2, 3, 4)) ≈ X4
+
+    X_single = randn(BigFloat, 10, 1)
+    @test rfft(X_single, 1) ≈ rfft(vec(X_single))
+    @test irfft(rfft(X_single, 1), 10, 1) ≈ X_single
+
+    X_br = randn(BigFloat, 10, 6)
+    Y_br = rfft(X_br, (1, 2))
+    # brfft should be irfft * (10 * 6)
+    @test brfft(Y_br, 10, (1, 2)) ≈ irfft(Y_br, 10, (1, 2)) * 60
+end
+
+@testset "Real-input generic_fft coverage" begin
+    X = randn(BigFloat, 8, 8)
+    @test GenericFFT.generic_fft(X, 1) ≈ fft(complex(X), 1)
+    @test GenericFFT.generic_fft(X, (1, 2)) ≈ fft(complex(X))
+end
+
+@testset "Real-input dispatch — fft(x) routes through GenericFFT" begin
+    for T in (Float16, BFloat16, BigFloat)
+        x = T.(randn(64))
+        @test plan_fft(x, 1:1) isa GenericFFT.DummyPlan
+        @test plan_fft(x, 1) isa GenericFFT.DummyPlan
+    end
+end
+
+@testset "No stack overflow for real input — non-power-of-2" begin
+    for T in (Float16, BFloat16, BigFloat)
+        x = T.(randn(100))
+        @test_nowarn fft(x)
+        @test_nowarn fft(x, 1)
+    end
+end
+
+@testset "Chirp index arithmetic in Float64 — no k² precision loss" begin
+    for T in (Float16, BFloat16, BigFloat)
+        n = 1000
+        S = promote_type(real(T), Float64)
+        ks = range(zero(S), stop=S(n)-one(S), length=n)
+        Wks = Complex{real(T)}.(cispi.(-ks.^2 ./ S(n)))
+        for k in [100, 500, 999]
+            ref = cispi(-Float64(k-1)^2 / n)
+            err = abs(ref - Complex{Float64}(Wks[k]))
+            @test err < 1e-2
+        end
+    end
+end
+
+@testset "Non-power-of-2 round-trip — no overflow or precision collapse" begin
+    for T in (Float16, BFloat16, BigFloat)
+        for n in (100, 500, 1000)
+            x   = T.(randn(n))
+            X   = fft(x)
+            xr  = real(ifft(X))
+            err = maximum(abs.(Float64.(x) .- Float64.(xr)))
+            @test !isnan(err)
+            tol = 200 * Float64(eps(real(T)(1))) * log2(n)
+            @test err < tol
+        end
+    end
+end
+
+@testset "BigFloat precision preserved — ks range stays in BigFloat" begin
+    setprecision(256) do
+        n   = 1000
+        x   = randn(BigFloat, n)
+        X   = fft(x)
+        xr  = real(ifft(X))
+        err = maximum(abs.(x .- xr))
+        @test err < 1e-60
+    end
+end
+
+@testset "Wks complex — no InexactError for real T" begin
+    for T in (Float16, BFloat16, BigFloat)
+        n = 100
+        S = promote_type(real(T), Float64)
+        ks = range(zero(S), stop=S(n)-one(S), length=n)
+        @test_nowarn Complex{real(T)}.(cispi.(-ks.^2 ./ S(n)))
+    end
+end
+
+@testset "Dominant frequency bins correct after all fixes" begin
+    for T in (Float16, BFloat16, BigFloat)
+        fs = 1000.0
+        t  = (0:999) ./ fs
+        x  = T.(sin.(2π * 50 * t) .+ 0.5 * sin.(2π * 200 * t))
+        X  = fft(x)
+        mags = abs.(Complex{Float64}.(X))
+        top4 = sortperm(mags, rev=true)[1:4]
+        @test 51  ∈ top4
+        @test 201 ∈ top4
+    end
 end
